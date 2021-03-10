@@ -1,6 +1,6 @@
 ﻿using PepperDash.Essentials.Core;
 
-namespace EssentialsPluginTemplate
+namespace PDE.CameraViscaPlugin.EPI 
 {
 	/// <summary>
 	/// Plugin device Bridge Join Map
@@ -12,7 +12,7 @@ namespace EssentialsPluginTemplate
 	/// <example>
 	/// "EssentialsPluginBridgeJoinMapTemplate" renamed to "SamsungMdcBridgeJoinMap"
 	/// </example>
-	public class EssentialsPluginBridgeJoinMapTemplate : JoinMapBaseAdvanced
+	public class CameraViscaBridgeJoinMap : JoinMapBaseAdvanced
 	{
 		#region Digital
 
@@ -93,8 +93,8 @@ namespace EssentialsPluginTemplate
 		/// Plugin device BridgeJoinMap constructor
 		/// </summary>
 		/// <param name="joinStart">This will be the join it starts on the EISC bridge</param>
-		public EssentialsPluginBridgeJoinMapTemplate(uint joinStart)
-			: base(joinStart, typeof(EssentialsPluginBridgeJoinMapTemplate))
+		public CameraViscaBridgeJoinMap(uint joinStart)
+			: base(joinStart, typeof(CameraViscaBridgeJoinMap))
 		{
 		}
 	}
