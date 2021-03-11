@@ -20,7 +20,7 @@ namespace PDE.CameraViscaPlugin.EPI
 		private readonly IBasicCommunication _comms;
 		private readonly GenericCommunicationMonitor _commsMonitor;
         private readonly ViscaProtocolProcessor _visca;
-        private readonly List<ViscaCommand> _pollCommands;
+        private readonly List<ViscaInquiry> _pollCommands;
 
         /// <summary>
 		/// CameraVisca Plugin device constructor using IBasicCommunication
@@ -99,6 +99,14 @@ namespace PDE.CameraViscaPlugin.EPI
             // Memory commands
             _memorySetCmd = new ViscaMemorySet(_config.Id, 0);
             _memoryRecallCmd = new ViscaMemoryRecall(_config.Id, 0);
+
+            _pollCommands = new List<ViscaInquiry>()
+                {
+                    _powerInquiry,
+                    _zoomPositionInquiry,
+                    _focusAutoInquiry,
+                    _focusPositionInquiry
+                };
 
             Capabilities = eCameraCapabilities.Pan | eCameraCapabilities.Tilt | eCameraCapabilities.Zoom | eCameraCapabilities.Focus;
             ControlMode = eCameraControlMode.Auto;
