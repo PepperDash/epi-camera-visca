@@ -10,7 +10,7 @@ namespace PDE.CameraViscaPlugin.EPI
 	/// CameraVisca Plugin configuration object
 	/// </summary>
 	[ConfigSnippet("\"properties\":{\"control\":{}")]
-	public class CameraViscaConfig
+    public class CameraViscaConfig : CameraPropertiesConfig
 	{
         /// <summary>
         /// Control ID of the camera (1-7)
@@ -37,6 +37,24 @@ namespace PDE.CameraViscaPlugin.EPI
         /// </summary>
         [JsonProperty("homeCmdSupport")]
         public bool HomeCmdSupport { get; set; }
+
+        /// <summary>
+        /// If Home VISCA command is not supported, use home Pan/Tilt/Zoom position be used.
+        /// </summary>
+        [JsonProperty("homePanPosition")]
+        public int HomePanPosition { get; set; }
+
+        /// <summary>
+        /// If Home VISCA command is not supported, use home Pan/Tilt/Zoom position be used.
+        /// </summary>
+        [JsonProperty("homeTiltPosition")]
+        public int HomeTiltPosition { get; set; }
+
+        /// <summary>
+        /// If Home VISCA command is not supported, use home Pan/Tilt/Zoom position be used.
+        /// </summary>
+        [JsonProperty("homeZoomPosition")]
+        public int HomeZoomPosition { get; set; }
 
         /// <summary>
         /// Slow Pan speed (0-18)
@@ -67,26 +85,6 @@ namespace PDE.CameraViscaPlugin.EPI
         /// </summary>
         [JsonProperty("fastSpeedHoldTimeMs")]
         public byte FastSpeedHoldTimeMs { get; set; }
-
-        [JsonProperty("supportsAutoMode")]
-        public bool SupportsAutoMode { get; set; }
-
-        [JsonProperty("supportsOffMode")]
-        public bool SupportsOffMode { get; set; }
-
-        [JsonProperty("presets")]
-        public List<CameraPreset> Presets { get; set; }
-
-		/// <summary>
-		/// Essentials control config object
-		/// </summary>
-		[JsonProperty("control")]
-		public EssentialsControlPropertiesConfig Control { get; set; }
-
-        /// <summary>
-        /// CommunicationMonitor config object
-        /// </summary>
-        public CommunicationMonitorConfig CommunicationMonitorProperties { get; set; }
 
 		/// <summary>
 		/// Constuctor

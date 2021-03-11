@@ -12,8 +12,9 @@ using Visca;
 
 namespace PDE.CameraViscaPlugin.EPI
 {
-	public partial class CameraVisca: CameraBase, IBridgeAdvanced
-        //IHasCameraPtzControl, ICommunicationMonitor, IHasCameraPresets, IHasPowerControlWithFeedback, IHasCameraFocusControl, IHasAutoFocusMode, IHasCameraOff
+    public partial class CameraVisca : CameraBase, IBridgeAdvanced, ICommunicationMonitor, IHasPowerControlWithFeedback,
+        IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, IHasAutoFocusMode, IHasCameraPresets
+    //  HasCameraMute
     {
         private readonly CameraViscaConfig _config;
 		private readonly IBasicCommunication _comms;
@@ -41,10 +42,10 @@ namespace PDE.CameraViscaPlugin.EPI
                 {
                     Debug.Console(l, this, f, o);
                 }));
-
+            
             _powerOnCmd = new ViscaPower(_config.Id, true);
             _powerOffCmd = new ViscaPower(_config.Id, false);
-            _powerInquiry = new ViscaPowerInquiry(_config.Id, new Action<bool>(power => { _power = power; OnPowerChanged(new OnOffEventArgs(power)); }));
+            _powerInquiry = new ViscaPowerInquiry(_config.Id, new Action<bool>(power => { _power = power; PowerIsOnFeedback.FireUpdate(); CameraIsOffFeedback.FireUpdate(); OnPowerChanged(new OnOffEventArgs(power)); }));
             _powerOnOffCmdReply = new Action<ViscaRxPacket>(rxPacket => { if (rxPacket.IsCompletionCommand) _visca.EnqueueCommand(_powerInquiry); });
 
             _zoomStopCmd = new ViscaZoomStop(_config.Id);
@@ -93,10 +94,18 @@ namespace PDE.CameraViscaPlugin.EPI
             _ptzAbsolute = new ViscaPTZPosition(_config.Id, false, _ptzPanSpeed, _ptzTiltSpeed, 0, 0);
             _ptzRelative = new ViscaPTZPosition(_config.Id, true, _ptzPanSpeed, _ptzTiltSpeed, 0, 0);
 
+            // Memory commands
+            _memorySetCmd = new ViscaMemorySet(_config.Id, 0);
+            _memoryRecallCmd = new ViscaMemoryRecall(_config.Id, 0);
 
-			ConnectFeedback = new BoolFeedback(() => Connect);
+            Capabilities = eCameraCapabilities.Pan | eCameraCapabilities.Tilt | eCameraCapabilities.Zoom | eCameraCapabilities.Focus;
+            ControlMode = eCameraControlMode.Auto;
+
+            ConnectFeedback = new BoolFeedback(() => Connect);
 			OnlineFeedback = new BoolFeedback(() => _commsMonitor.IsOnline);
 			StatusFeedback = new IntFeedback(() => (int)_commsMonitor.Status);
+            PowerIsOnFeedback = new BoolFeedback(() => Power);
+            CameraIsOffFeedback = new BoolFeedback( () => !Power);
 
 			_comms = comm;
 			var socket = _comms as ISocketStatus;
@@ -255,6 +264,110 @@ namespace PDE.CameraViscaPlugin.EPI
 
         #endregion
 
+        #region ICommunicationMonitor Members
+
+        public StatusMonitorBase CommunicationMonitor { get { return _commsMonitor; } }
+
+        #endregion
+
+        #region IHasPowerControlWithFeedback Members
+
+        public BoolFeedback PowerIsOnFeedback { get; private set; }
+
+        #region IHasPowerControl Members
+
+        public void PowerOff() { Power = false; }
+
+        public void PowerOn() { Power = true; }
+
+        public void PowerToggle() { Power = !Power; }
+
+        #endregion IHasPowerControl Members
+
+        #endregion IHasPowerControlWithFeedback Members
+
+        #region IHasCameraOff Members
+
+        public BoolFeedback CameraIsOffFeedback { get; private set; }
+
+        public void CameraOff() { Power = false; }
+
+        #endregion
+
+        #region IHasCameraPtzControl Members
+
+        public void PositionHome()
+        {
+            if (_config.HomeCmdSupport)
+                Home();
+            else
+            {
+                PositionAbsolute(_config.HomePanPosition, _config.HomeTiltPosition);
+                ZoomPosition = _config.HomeZoomPosition;
+            }
+        }
+
+        #region IHasCameraPanControl Members
+
+        public void PanLeft()  { Left(); }
+
+        public void PanRight()  { Right(); }
+
+        public void PanStop()  { Stop(); }
+
+        #endregion
+
+        #region IHasCameraTiltControl Members
+
+        public void TiltDown() { Down(); }
+
+        public void TiltStop()  { Stop(); }
+
+        public void TiltUp() { Up(); }
+
+        #endregion
+
+        #region IHasCameraZoomControl Members
+
+        public void ZoomIn() { ZoomTele(); }
+
+        public void ZoomOut() { ZoomWide(); }
+
+        #endregion IHasCameraZoomControl Members
+
+        #endregion IHasCameraPtzControl Members
+
+        #region IHasCameraFocusControl Members
+
+        public void TriggerAutoFocus() { FocusTrigger();}
+
+        #endregion
+
+        #region IHasAutoFocusMode Members
+
+        public void SetFocusModeAuto() { FocusAuto = true; }
+
+        public void SetFocusModeManual() { FocusAuto = false; }
+
+        public void ToggleFocusMode() { FocusAutoToggle(); }
+
+        #endregion
+
+
+        #region IHasCameraPresets Members
+
+        public void PresetSelect(int preset) { MemoryRecall((byte) preset);}
+
+        public void PresetStore(int preset, string description)
+        {
+            throw new NotImplementedException();
+        }
+
+        public List<CameraPreset> Presets { get { return _config.Presets; } }
+
+        public event EventHandler<EventArgs> PresetsListHasChanged;
+
+        #endregion
     }
 }
 

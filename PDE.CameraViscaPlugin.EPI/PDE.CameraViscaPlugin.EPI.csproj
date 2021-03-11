@@ -107,6 +107,7 @@
     <Compile Include="CameraViscaEventArgs.cs" />
     <Compile Include="CameraViscaFactory.cs" />
     <Compile Include="CameraViscaPower.cs" />
+    <Compile Include="CameraViscaMemory.cs" />
     <Compile Include="CameraViscaZoom.cs" />
     <Compile Include="CameraVsicaPTZ.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
