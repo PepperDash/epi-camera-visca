@@ -36,7 +36,9 @@ namespace PDE.CameraViscaPlugin.EPI
 
 			_config = config;
 
+            // TODO: figure out config Enabled
             //Enabled = _config.Control.
+            Enabled = true;
 
             _visca = new ViscaProtocolProcessor(comm.SendBytes,  new Action<byte, string, object[]>( (l, f, o) => 
                 {
