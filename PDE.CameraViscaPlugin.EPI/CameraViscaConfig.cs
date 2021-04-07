@@ -13,6 +13,12 @@ namespace PDE.CameraViscaPlugin.EPI
     public class CameraViscaConfig : CameraPropertiesConfig
 	{
         /// <summary>
+        /// Essential Device property
+        /// </summary>
+        [JsonProperty("enabled")]
+        public bool Enabled { get; set; }
+
+        /// <summary>
         /// Control ID of the camera (1-7)
         /// </summary>
         [JsonProperty("id")]
@@ -89,13 +95,9 @@ namespace PDE.CameraViscaPlugin.EPI
 		/// <summary>
 		/// Constuctor
 		/// </summary>
-		/// <remarks>
-		/// If using a collection you must instantiate the collection in the constructor
-		/// to avoid exceptions when reading the configuration file 
-		/// </remarks>
 		public CameraViscaConfig()
+            : base()
 		{
-			//DeviceDictionary = new Dictionary<string, EssentialsPluginConfigObjectDictionaryTemplate>();
 		}
 	}
 }

@@ -7,20 +7,21 @@ using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 using PepperDash_Essentials_Core.Queues;
 using PepperDash.Essentials.Devices.Common.Cameras;
+using Crestron.SimplSharp;
 
 using Visca;
 
 namespace PDE.CameraViscaPlugin.EPI
 {
     public partial class CameraVisca : CameraBase, IBridgeAdvanced, ICommunicationMonitor, IHasPowerControlWithFeedback,
-        IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, IHasAutoFocusMode, IHasCameraPresets
-    //  HasCameraMute
+        IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, IHasAutoFocusMode, IHasCameraMute, IHasCameraPresets
     {
         private readonly CameraViscaConfig _config;
 		private readonly IBasicCommunication _comms;
 		private readonly GenericCommunicationMonitor _commsMonitor;
         private readonly ViscaProtocolProcessor _visca;
-        private readonly List<ViscaInquiry> _pollCommands;
+        private readonly ViscaCamera _camera;
+        public ViscaCamera Camera { get { return _camera; } }
 
         /// <summary>
 		/// CameraVisca Plugin device constructor using IBasicCommunication
@@ -35,89 +36,30 @@ namespace PDE.CameraViscaPlugin.EPI
 			Debug.Console(0, this, "Constructing new {0} instance", name);
 
 			_config = config;
-
-            // TODO: figure out config Enabled
-            //Enabled = _config.Control.
-            Enabled = true;
+            Enabled = _config.Enabled;
 
             _visca = new ViscaProtocolProcessor(comm.SendBytes,  new Action<byte, string, object[]>( (l, f, o) => 
                 {
                     Debug.Console(l, this, f, o);
                 }));
-            
-            _powerOnCmd = new ViscaPower(_config.Id, true);
-            _powerOffCmd = new ViscaPower(_config.Id, false);
-            _powerInquiry = new ViscaPowerInquiry(_config.Id, new Action<bool>(power => { _power = power; PowerIsOnFeedback.FireUpdate(); CameraIsOffFeedback.FireUpdate(); OnPowerChanged(new OnOffEventArgs(power)); }));
-            _powerOnOffCmdReply = new Action<ViscaRxPacket>(rxPacket => { if (rxPacket.IsCompletionCommand) _visca.EnqueueCommand(_powerInquiry); });
 
-            _zoomStopCmd = new ViscaZoomStop(_config.Id);
-            _zoomTeleCmd = new ViscaZoomTele(_config.Id);
-            _zoomWideCmd = new ViscaZoomWide(_config.Id);
-            // TODO: Do something about limits... config
-            _zoomSpeed = new ViscaZoomSpeed(ViscaDefaults.ZoomSpeedLimits);
-            _zoomTeleWithSpeedCmd = new ViscaZoomTeleWithSpeed(_config.Id, _zoomSpeed);
-            _zoomWideWithSpeedCmd = new ViscaZoomWideWithSpeed(_config.Id, _zoomSpeed);
-            _zoomPositionCmd = new ViscaZoomPosition(_config.Id, 0);
-            _zoomPositionInquiry = new ViscaZoomPositionInquiry(_config.Id, new Action<int>(position => { _zoomPosition = position; OnZoomPositionChanged(new PositionEventArgs(position)); }));
-
-            _focusStopCmd = new ViscaFocusStop(_config.Id);
-            _focusFarCmd = new ViscaFocusFar(_config.Id);
-            _focusNearCmd = new ViscaFocusNear(_config.Id);
-            _focusSpeed = new ViscaFocusSpeed(ViscaDefaults.FocusSpeedLimits);
-            _focusFarWithSpeedCmd = new ViscaFocusFarWithSpeed(_config.Id, _focusSpeed);
-            _focusNearWithSpeedCmd = new ViscaFocusNearWithSpeed(_config.Id, _focusSpeed);
-            _focusTriggerCmd = new ViscaFocusTrigger(_config.Id);
-            _focusInfinityCmd = new ViscaFocusInfinity(_config.Id);
-
-            _focusNearLimitCmd = new ViscaFocusNearLimit(_config.Id, 0x1000);
-
-            _focusAutoOnCmd = new ViscaFocusAutoOn(_config.Id);
-            _focusAutoOffCmd = new ViscaFocusAutoOff(_config.Id);
-            _focusAutoToggleCmd = new ViscaFocusAutoToggle(_config.Id);
-            _focusAutoInquiry = new ViscaFocusAutoInquiry(_config.Id, new Action<bool>(focusAuto => { _focusAuto = focusAuto; OnFocusAutoChanged(new OnOffEventArgs(focusAuto)); }));
-            _focusAutoOnOffCmdReply = new Action<ViscaRxPacket>(rxPacket => { if (rxPacket.IsCompletionCommand) _visca.EnqueueCommand(_focusAutoInquiry); });
-
-            _focusPositionCmd = new ViscaFocusPosition(_config.Id, 0);
-            _focusPositionInquiry = new ViscaFocusPositionInquiry(_config.Id, new Action<int>(position => { _focusPosition = position; OnFocusPositionChanged(new PositionEventArgs(position)); }));
-
-            // PTZ Commands
-            _ptzHome = new ViscaPTZHome(_config.Id);
-            _ptzPanSpeed = new ViscaPanSpeed(ViscaDefaults.PanSpeedLimits);
-            _ptzTiltSpeed = new ViscaTiltSpeed(ViscaDefaults.TiltSpeedLimits);
-            _ptzStop = new ViscaPTZStop(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzUp = new ViscaPTZUp(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzDown = new ViscaPTZDown(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzLeft = new ViscaPTZLeft(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzRight = new ViscaPTZRight(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzUpLeft = new ViscaPTZUpLeft(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzUpRight = new ViscaPTZUpRight(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzDownLeft = new ViscaPTZDownLeft(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzDownRight = new ViscaPTZDownRight(_config.Id, _ptzPanSpeed, _ptzTiltSpeed);
-            _ptzAbsolute = new ViscaPTZPosition(_config.Id, false, _ptzPanSpeed, _ptzTiltSpeed, 0, 0);
-            _ptzRelative = new ViscaPTZPosition(_config.Id, true, _ptzPanSpeed, _ptzTiltSpeed, 0, 0);
-
-            // Memory commands
-            _memorySetCmd = new ViscaMemorySet(_config.Id, 0);
-            _memoryRecallCmd = new ViscaMemoryRecall(_config.Id, 0);
-
-            _pollCommands = new List<ViscaInquiry>()
-                {
-                    _powerInquiry,
-                    _zoomPositionInquiry,
-                    _focusAutoInquiry,
-                    _focusPositionInquiry
-                };
+            _camera = new ViscaCamera((ViscaCameraId)_config.Id, null, _visca);
+            _camera.PollEnabled = Enabled;
 
             Capabilities = eCameraCapabilities.Pan | eCameraCapabilities.Tilt | eCameraCapabilities.Zoom | eCameraCapabilities.Focus;
             ControlMode = eCameraControlMode.Auto;
 
-            ConnectFeedback = new BoolFeedback(() => Connect);
-			OnlineFeedback = new BoolFeedback(() => _commsMonitor.IsOnline);
-			StatusFeedback = new IntFeedback(() => (int)_commsMonitor.Status);
-            PowerIsOnFeedback = new BoolFeedback(() => Power);
-            CameraIsOffFeedback = new BoolFeedback( () => !Power);
+            ConnectFeedback = new BoolFeedback( () => Connect);
+			OnlineFeedback = new BoolFeedback( () => _commsMonitor.IsOnline);
+			StatusFeedback = new IntFeedback( () => (int)_commsMonitor.Status);
+            PowerIsOnFeedback = new BoolFeedback( () => _camera.Power);
+            CameraIsOffFeedback = new BoolFeedback( () => !_camera.Power);
+            CameraIsMutedFeedback = new BoolFeedback( () => _camera.Mute);
 
-			_comms = comm;
+            _camera.PowerChanged += (o, e) => { PowerIsOnFeedback.FireUpdate(); CameraIsOffFeedback.FireUpdate(); };
+            _camera.MuteChanged += (o, e) => { CameraIsMutedFeedback.FireUpdate(); };
+
+            _comms = comm;
 			var socket = _comms as ISocketStatus;
 			if (socket != null)
 			{
@@ -126,25 +68,17 @@ namespace PDE.CameraViscaPlugin.EPI
 				Connect = true;
             }
 
-            var pollAction = new Action(() =>
-                {
-                    if (Enabled)
-                    {
-                        foreach (var command in _pollCommands)
-                            _visca.EnqueueCommand(command);
-                    }
-                });
             if (_config.CommunicationMonitorProperties != null)
             {
                 _commsMonitor = new GenericCommunicationMonitor(this, _comms,
                     _config.CommunicationMonitorProperties.PollInterval,
                     _config.CommunicationMonitorProperties.TimeToWarning,
                     _config.CommunicationMonitorProperties.TimeToError,
-                    pollAction);
+                    _camera.Poll);
             }
             else
             {
-                _commsMonitor = new GenericCommunicationMonitor(this, _comms, 20000, 120000, 300000, pollAction);
+                _commsMonitor = new GenericCommunicationMonitor(this, _comms, 10000, 20000, 30000, _camera.Poll);
             }
 
             _commsMonitor.Client.BytesReceived += (s, e) => { if (Enabled) _visca.ProcessIncomingData(e.Bytes); };
@@ -286,11 +220,11 @@ namespace PDE.CameraViscaPlugin.EPI
 
         #region IHasPowerControl Members
 
-        public void PowerOff() { Power = false; }
+        public void PowerOff() { _camera.Power = false; }
 
-        public void PowerOn() { Power = true; }
+        public void PowerOn() { _camera.Power = true; }
 
-        public void PowerToggle() { Power = !Power; }
+        public void PowerToggle() { _camera.Power = !_camera.Power; }
 
         #endregion IHasPowerControl Members
 
@@ -300,7 +234,7 @@ namespace PDE.CameraViscaPlugin.EPI
 
         public BoolFeedback CameraIsOffFeedback { get; private set; }
 
-        public void CameraOff() { Power = false; }
+        public void CameraOff() { _camera.Power = false; }
 
         #endregion
 
@@ -309,39 +243,41 @@ namespace PDE.CameraViscaPlugin.EPI
         public void PositionHome()
         {
             if (_config.HomeCmdSupport)
-                Home();
+                _camera.Home();
             else
             {
-                PositionAbsolute(_config.HomePanPosition, _config.HomeTiltPosition);
-                ZoomPosition = _config.HomeZoomPosition;
+                _camera.PositionAbsolute(_config.HomePanPosition, _config.HomeTiltPosition);
+                _camera.ZoomPosition = _config.HomeZoomPosition;
             }
         }
 
         #region IHasCameraPanControl Members
 
-        public void PanLeft()  { Left(); }
+        public void PanLeft()  { _camera.Left(); }
 
-        public void PanRight()  { Right(); }
+        public void PanRight()  { _camera.Right(); }
 
-        public void PanStop()  { Stop(); }
+        public void PanStop()  { _camera.Stop(); }
 
         #endregion
 
         #region IHasCameraTiltControl Members
 
-        public void TiltDown() { Down(); }
+        public void TiltDown() { _camera.Down(); }
 
-        public void TiltStop()  { Stop(); }
+        public void TiltStop()  { _camera.Stop(); }
 
-        public void TiltUp() { Up(); }
+        public void TiltUp() { _camera.Up(); }
 
         #endregion
 
         #region IHasCameraZoomControl Members
 
-        public void ZoomIn() { ZoomTele(); }
+        public void ZoomIn() { _camera.ZoomTele(); }
 
-        public void ZoomOut() { ZoomWide(); }
+        public void ZoomOut() { _camera.ZoomWide(); }
+
+        public void ZoomStop() { _camera.ZoomStop(); }
 
         #endregion IHasCameraZoomControl Members
 
@@ -349,24 +285,41 @@ namespace PDE.CameraViscaPlugin.EPI
 
         #region IHasCameraFocusControl Members
 
-        public void TriggerAutoFocus() { FocusTrigger();}
+        public void FocusFar() { _camera.FocusFar(); }
+
+        public void FocusNear() { _camera.FocusNear(); }
+
+        public void FocusStop() { _camera.FocusStop(); }
+
+        public void TriggerAutoFocus() { _camera.FocusTrigger(); }
 
         #endregion
 
         #region IHasAutoFocusMode Members
 
-        public void SetFocusModeAuto() { FocusAuto = true; }
+        public void SetFocusModeAuto() { _camera.FocusAuto = true; }
 
-        public void SetFocusModeManual() { FocusAuto = false; }
+        public void SetFocusModeManual() { _camera.FocusAuto = false; }
 
-        public void ToggleFocusMode() { FocusAutoToggle(); }
+        public void ToggleFocusMode() { _camera.FocusAutoToggle(); }
 
         #endregion
 
+        #region IHasCameraMute Members
+
+        public BoolFeedback CameraIsMutedFeedback { get; private set; }
+
+        public void CameraMuteOff() { _camera.Mute = false; }
+
+        public void CameraMuteOn() { _camera.Mute = true; }
+
+        public void CameraMuteToggle() { _camera.Mute = !_camera.Mute; }
+
+        #endregion
 
         #region IHasCameraPresets Members
 
-        public void PresetSelect(int preset) { MemoryRecall((byte) preset);}
+        public void PresetSelect(int preset) { _camera.MemoryRecall((byte) preset);}
 
         public void PresetStore(int preset, string description)
         {
@@ -378,6 +331,7 @@ namespace PDE.CameraViscaPlugin.EPI
         public event EventHandler<EventArgs> PresetsListHasChanged;
 
         #endregion
+
     }
 }
 
