@@ -155,7 +155,7 @@ namespace PDE.CameraViscaPlugin.EPI
 
                 _ptzSpeedIncreaseAction = ptzCommand =>
                 {
-                    // kill timer
+                    // Kill Speed Increase Timer as we already in fast pace
                     ptzSpeedChangeTimerDispose();
                     // if Fast speeds not defined, use Max values
                     _camera.PanSpeed = (_config.PanSpeedFast > 0) ? _config.PanSpeedFast : Visca.ViscaDefaults.PanSpeedLimits.High;

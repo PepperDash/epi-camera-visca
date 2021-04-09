@@ -63,6 +63,12 @@ namespace PDE.CameraViscaPlugin.EPI
         public int HomeZoomPosition { get; set; }
 
         /// <summary>
+        /// Time a button must be held before fast speed is engaged (Milliseconds)
+        /// </summary>
+        [JsonProperty("fastSpeedHoldTimeMs")]
+        public int FastSpeedHoldTimeMs { get; set; }
+
+        /// <summary>
         /// Slow Pan speed (0-18)
         /// </summary>
         [JsonProperty("panSpeedSlow")]
@@ -85,12 +91,6 @@ namespace PDE.CameraViscaPlugin.EPI
         /// </summary>
         [JsonProperty("tiltSpeedFast")]
         public byte TiltSpeedFast { get; set; }
-
-        /// <summary>
-        /// Time a button must be held before fast speed is engaged (Milliseconds)
-        /// </summary>
-        [JsonProperty("fastSpeedHoldTimeMs")]
-        public byte FastSpeedHoldTimeMs { get; set; }
 
 		/// <summary>
 		/// Constuctor
