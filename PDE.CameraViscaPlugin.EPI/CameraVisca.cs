@@ -5,7 +5,6 @@ using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
-using PepperDash_Essentials_Core.Queues;
 using PepperDash.Essentials.Devices.Common.Cameras;
 using Crestron.SimplSharp;
 
@@ -13,7 +12,7 @@ using Visca;
 
 namespace PDE.CameraViscaPlugin.EPI
 {
-    public partial class CameraVisca : CameraBase, IBridgeAdvanced, ICommunicationMonitor, IHasPowerControlWithFeedback,
+    public class CameraVisca : CameraBase, IBridgeAdvanced, ICommunicationMonitor, IHasPowerControlWithFeedback,
         IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, IHasAutoFocusMode, IHasCameraMute, IHasCameraPresets
     {
         private readonly CameraViscaConfig _config;
@@ -34,10 +33,10 @@ namespace PDE.CameraViscaPlugin.EPI
         /// Used to determine when to move the camera at a faster speed if a direction is held
         /// </summary>
         private readonly bool _ptzSpeedIncreaseBehaivor;
-        private CTimerCallbackFunction _ptzSpeedIncreaseAction;
+        private readonly CTimerCallbackFunction _ptzSpeedIncreaseAction;
         private CTimer _ptzSpeedIncreaseTimer;
-        private byte _ptzPanNormalSpeed;
-        private byte _ptzTiltNormalSpeed;
+        private readonly byte _ptzPanNormalSpeed;
+        private readonly byte _ptzTiltNormalSpeed;
 
         public ViscaCamera Camera { get { return _camera; } }
 
@@ -47,7 +46,7 @@ namespace PDE.CameraViscaPlugin.EPI
 		/// <param name="key"></param>
 		/// <param name="name"></param>
 		/// <param name="config"></param>
-		/// <param name="comms"></param>
+		/// <param name="comm"></param>
 		public CameraVisca(string key, string name, CameraViscaConfig config, IBasicCommunication comm)
 			: base(key, name)
 		{
@@ -56,10 +55,7 @@ namespace PDE.CameraViscaPlugin.EPI
 			_config = config;
             Enabled = _config.Enabled;
 
-            _visca = new ViscaProtocolProcessor(comm.SendBytes,  new Action<byte, string, object[]>( (l, f, o) => 
-                {
-                    Debug.Console(l, this, f, o);
-                }));
+            _visca = new ViscaProtocolProcessor(comm.SendBytes,  (l, f, o) => Debug.Console(l, this, f, o));
 
             _camera = new ViscaCamera((ViscaCameraId)_config.Id, null, _visca);
             _camera.PollEnabled = Enabled;
@@ -75,7 +71,7 @@ namespace PDE.CameraViscaPlugin.EPI
             CameraIsMutedFeedback = new BoolFeedback( () => _camera.Mute);
 
             _camera.PowerChanged += (o, e) => { PowerIsOnFeedback.FireUpdate(); CameraIsOffFeedback.FireUpdate(); };
-            _camera.MuteChanged += (o, e) => { CameraIsMutedFeedback.FireUpdate(); };
+            _camera.MuteChanged += (o, e) => CameraIsMutedFeedback.FireUpdate();
 
             _cameraPollCommands = new Dictionary<string, Action>()
             {
@@ -107,8 +103,6 @@ namespace PDE.CameraViscaPlugin.EPI
 			if (socket != null)
 			{
 				socket.ConnectionChange += socket_ConnectionChange;
-                if (Enabled)
-				    Connect = true;
             }
 
             if (_config.CommunicationMonitorProperties != null)
@@ -135,6 +129,14 @@ namespace PDE.CameraViscaPlugin.EPI
 
             _commsMonitor.Client.BytesReceived += (s, e) => _visca.ProcessIncomingData(e.Bytes);
             DeviceManager.AddDevice(CommunicationMonitor);
+
+            DeviceManager.AllDevicesActivated += (sender, args) =>
+            {
+                if (Enabled)
+                {
+                    Connect = true;
+                }
+            };
 
             // Handle Increase PTZ move speed
             #region PTZ Speed Increase
@@ -170,8 +172,8 @@ namespace PDE.CameraViscaPlugin.EPI
 
         public override bool CustomActivate()
         {
-            _commsMonitor.StatusChange += (o, a) => { Debug.Console(2, this, "Communication monitor state: {0}", _commsMonitor.Status); };
-            if (Enabled) Connect = true;
+            _commsMonitor.StatusChange += (o, a) => Debug.Console(2, this, "Communication monitor state: {0}", _commsMonitor.Status);
+            
             return true;
         }
 
