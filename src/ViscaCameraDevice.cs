@@ -13,7 +13,10 @@ using PepperDash.Essentials.Devices.Common.Cameras;
 namespace ViscaCameraPlugin
 {
 	public class ViscaCameraDevice : EssentialsBridgeableDevice, ICommunicationMonitor, IRoutingSource,
-		IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, ICameraCapabilities
+		IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl
+#if SERIES4
+		, ICameraCapabilities
+#endif
 	{
 
 		public bool CanPan { get; private set; }
@@ -46,7 +49,10 @@ namespace ViscaCameraPlugin
 		private const uint FocusSpeedMax = 7;
 		private const int PresetStoreHoldTimeMs = 5000; // 5s
 
-		private bool _cameraIsOff;
+		private const int AutoTrackingStartPreset = 80;
+		private const int AutoTrackingStopPreset = 81;
+
+        private bool _cameraIsOff;
 		public bool CameraIsOff
 		{
 			get { return _cameraIsOff; }
@@ -326,6 +332,10 @@ namespace ViscaCameraPlugin
 			trilist.SetSigTrueAction(joinMap.PowerOn.JoinNumber, CameraOn);
 			trilist.SetSigTrueAction(joinMap.PowerOff.JoinNumber, CameraOff);
 
+            trilist.SetSigTrueAction(joinMap.TrackingOn.JoinNumber, TrackingOn);
+            trilist.SetSigTrueAction(joinMap.TrackingOff.JoinNumber, TrackingOff);
+
+
 			CameraIsOffFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.PowerOn.JoinNumber]);
 			CameraIsOffFeedback.LinkInputSig(trilist.BooleanInput[joinMap.PowerOff.JoinNumber]);
 
@@ -384,6 +394,7 @@ namespace ViscaCameraPlugin
 				if (sig) FocusFar();
 				else FocusStop();
 			});
+
 
 			trilist.SetSigTrueAction(joinMap.TriggerAutoFocus.JoinNumber, TriggerAutoFocus);
 
@@ -701,7 +712,7 @@ namespace ViscaCameraPlugin
 			SendBytes(new byte[] { _address, 0x01, 0x04, 0x08, 0x02, 0xFF });
 		}
 
-		public void TriggerAutoFocus()
+        public void TriggerAutoFocus()
 		{
 			var cmd = AutoFocus // ? off : on
 				? new byte[] { _address, 0x01, 0x04, 0x38, 0x03, 0xFF }
@@ -715,14 +726,36 @@ namespace ViscaCameraPlugin
 			SendBytes(cmd);
 		}
 
+		public void TrackingOn()
+		{
+			PresetSelect(AutoTrackingStartPreset);
+		}
+
+		public void TrackingOff()
+		{
+			PresetSelect(AutoTrackingStopPreset);
+		}
+
 		public void PresetSelect(int preset)
 		{
 			ViscaCameraPresetsConfig p;
-			if (Presets.TryGetValue((uint)preset, out p))
+			byte presetID;
+
+            if (preset == AutoTrackingStartPreset || preset == AutoTrackingStopPreset)
+            {
+				presetID = Convert.ToByte(preset);
+            }
+			else if (Presets.TryGetValue((uint)preset, out p))
 			{
-				SendBytes(new byte[] { _address, 0x01, 0x04, 0x3F, 0x02, Convert.ToByte(p.Id), 0xFF });
+				presetID = Convert.ToByte(p.Id);
 			}
-		}
+			else
+			{
+				return;
+			}
+
+			SendBytes(new byte[] { _address, 0x01, 0x04, 0x3F, 0x02, presetID, 0xFF });
+        }
 
 		public void PresetRecallRaw(int preset)
 		{

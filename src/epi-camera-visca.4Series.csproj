@@ -24,6 +24,10 @@
 		<DefineConstants>$(DefineConstants);SERIES4</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<DefineConstants>$(DefineConstants);SERIES4</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Remove="Properties\**" />
 		<EmbeddedResource Remove="Properties\**" />
@@ -43,7 +47,7 @@
 	
 
 	<ItemGroup>
-		<PackageReference Include="PepperDashEssentials" Version="2.24.0">
+		<PackageReference Include="PepperDashEssentials" Version="2.36.3">
 			<ExcludeAssets>runtime</ExcludeAssets>
 		</PackageReference>
 	</ItemGroup>

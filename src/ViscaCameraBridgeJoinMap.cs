@@ -220,7 +220,37 @@ namespace ViscaCameraPlugin
 				JoinType = eJoinType.Digital
 			});
 
-		[JoinName("PrivacyOn")]
+
+        [JoinName("TrackingOn")]
+        public JoinDataComplete TrackingOn = new JoinDataComplete(
+    new JoinData
+    {
+        JoinNumber = 46,
+        JoinSpan = 1
+    },
+    new JoinMetadata
+    {
+        Description = "Tracking On",
+        JoinCapabilities = eJoinCapabilities.FromSIMPL,
+        JoinType = eJoinType.Digital
+    });
+
+        [JoinName("TrackingOff")]
+        public JoinDataComplete TrackingOff = new JoinDataComplete(
+            new JoinData
+            {
+                JoinNumber = 47,
+                JoinSpan = 1
+            },
+            new JoinMetadata
+            {
+                Description = "Tracking Off",
+                JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                JoinType = eJoinType.Digital
+            });
+
+
+        [JoinName("PrivacyOn")]
 		public JoinDataComplete PrivacyOn = new JoinDataComplete(
 			new JoinData
 			{
