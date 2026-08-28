@@ -13,7 +13,8 @@ using PepperDash.Essentials.Devices.Common.Cameras;
 namespace ViscaCameraPlugin
 {
 	public class ViscaCameraDevice : EssentialsBridgeableDevice, ICommunicationMonitor, IRoutingSource,
-		IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, ICameraCapabilities
+		IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, ICameraCapabilities,
+		IHasPowerControlWithFeedback, IHasCameraPresets
 	{
 
 		public bool CanPan { get; private set; }
@@ -25,6 +26,8 @@ namespace ViscaCameraPlugin
 		public bool CanFocus { get; private set; }
 
 		public RoutingPortCollection<RoutingOutputPort> OutputPorts { get; private set; }
+
+		private RoutingOutputPort AnyOut;
 
 		public StatusMonitorBase CommunicationMonitor { get; private set; }
 		private readonly IBasicCommunication _comms;
@@ -55,6 +58,7 @@ namespace ViscaCameraPlugin
 				if (_cameraIsOff == value) return;
 				_cameraIsOff = value;
 				CameraIsOffFeedback.FireUpdate();
+				PowerIsOnFeedback.FireUpdate();
 			}
 		}
 
@@ -148,13 +152,28 @@ namespace ViscaCameraPlugin
 
 		public IntFeedback NumberOfPresetsFeedback { get; private set; }
 		public BoolFeedback PresetStoredFeedback { get; private set; }
-		public Dictionary<uint, ViscaCameraPresetsConfig> Presets { get; set; }
+
+		/// <summary>
+		/// Camera presets list, ordered by config order. CameraPreset.ID is the 1-based
+		/// index passed to PresetSelect/PresetStore; the raw VISCA preset number from
+		/// config is kept internally in _presetsByIndex.
+		/// </summary>
+		public List<CameraPreset> Presets { get; private set; }
+
+		/// <summary>
+		/// Raised when the presets list has been (re)built
+		/// </summary>
+		public event EventHandler<EventArgs> PresetsListHasChanged;
+
+		private readonly Dictionary<uint, ViscaCameraPresetsConfig> _presetsByIndex = new Dictionary<uint, ViscaCameraPresetsConfig>();
+
 		public Dictionary<uint, StringFeedback> PresetNamesFeedbacks { get; private set; }
 
 		public BoolFeedback OnlineFeedback { get { return CommunicationMonitor.IsOnlineFeedback; } }
 		public IntFeedback SocketStatusFeedback { get; private set; }
 		public IntFeedback MonitorStatusFeedback { get; private set; }
 		public BoolFeedback CameraIsOffFeedback { get; private set; }
+		public BoolFeedback PowerIsOnFeedback { get; private set; }
 		public BoolFeedback AutoFocusFeedback { get; private set; }
 		public IntFeedback PanSpeedFeedback { get; private set; }
 		public IntFeedback TiltSpeedFeedback { get; private set; }
@@ -176,10 +195,16 @@ namespace ViscaCameraPlugin
 		{
 			this.LogInformation("Constructing new VISCA Camera instance");
 
+			AnyOut = new RoutingOutputPort(RoutingPortNames.AnyOut, eRoutingSignalType.Video,
+			eRoutingPortConnectionType.None, null, this);
+
 			OutputPorts = new RoutingPortCollection<RoutingOutputPort>();
+
+			OutputPorts.Add(AnyOut);
 
 			MonitorStatusFeedback = new IntFeedback("monitorStatus", () => (int)CommunicationMonitor.Status);
 			CameraIsOffFeedback = new BoolFeedback("cameraIsOff", () => CameraIsOff);
+			PowerIsOnFeedback = new BoolFeedback("powerIsOn", () => !CameraIsOff);
 			AutoFocusFeedback = new BoolFeedback("autoFocus", () => AutoFocus);
 			PanSpeedFeedback = new IntFeedback("panSpeed", () => (int)PanSpeed);
 			TiltSpeedFeedback = new IntFeedback("tiltSpeed", () => (int)TiltSpeed);
@@ -196,10 +221,20 @@ namespace ViscaCameraPlugin
 			ZoomSpeed = config.ZoomSpeed == 0 ? ZoomSpeedDefault : config.ZoomSpeed;
 			FocusSpeed = config.FocusSpeed == 0 ? FocusSpeedDefault : config.FocusSpeed;
 
-			CanPan = true;
-			CanTilt = true;
-			CanZoom = true;
-			CanFocus = true;
+			if (config.Capabilities != null)
+			{
+				CanPan = config.Capabilities.CanPan;
+				CanTilt = config.Capabilities.CanTilt;
+				CanZoom = config.Capabilities.CanZoom;
+				CanFocus = config.Capabilities.CanFocus;
+			}
+			else
+			{
+				CanPan = true;
+				CanTilt = true;
+				CanZoom = true;
+				CanFocus = true;
+			}
 
 			_privacyOnPreset = config.PrivacyOnPreset;
 			_privacyOffPreset = config.PrivacyOffPreset;
@@ -233,7 +268,7 @@ namespace ViscaCameraPlugin
 				InitializeCamera();
 			}
 
-			Presets = new Dictionary<uint, ViscaCameraPresetsConfig>();
+			Presets = new List<CameraPreset>();
 			PresetNamesFeedbacks = new Dictionary<uint, StringFeedback>();
 			NumberOfPresetsFeedback = new IntFeedback("numberOfPresets", () => NumberOfPresets);
 			PresetStoredFeedback = new BoolFeedback("presetStored", () => PresetStored);
@@ -245,14 +280,22 @@ namespace ViscaCameraPlugin
 		/// Use the Initialize to connect the device and start the comms monitor
 		/// </summary>
 		/// <returns></returns>
-		public override void Initialize()
+		protected override void Initialize()
 		{
-			// Essentials will handle the connect method to the device
-			_comms.Connect();
-			// Essentials will handle starting the comms monitor
-			CommunicationMonitor.Start();
+			try
+			{
+				// Essentials will handle the connect method to the device
+				_comms.Connect();
+				// Essentials will handle starting the comms monitor
+				CommunicationMonitor.Start();
 
-			base.Initialize();
+				base.Initialize();
+			}
+			catch (Exception ex)
+			{
+				this.LogError(ex, "Exception in Initialize: {0}", ex.Message);
+				throw;
+			}
 		}
 
 
@@ -260,11 +303,16 @@ namespace ViscaCameraPlugin
 		{
 			if (presets == null)
 			{
-				this.LogInformation("InitializePresets failed, preset dictionary is null");
+				this.LogInformation("InitializePresets failed, preset list is null");
 				return;
 			}
 
-			this.LogInformation("Intializing {0} presets", presets.Count());
+			this.LogInformation("Initializing {0} presets", presets.Count());
+
+			// clear so the method is safe to call more than once (e.g. re-initialization)
+			_presetsByIndex.Clear();
+			Presets.Clear();
+			PresetNamesFeedbacks.Clear();
 
 			uint index = 1;
 			foreach (var preset in presets)
@@ -276,7 +324,8 @@ namespace ViscaCameraPlugin
 					index, name, id);
 
 
-				Presets.Add(index, preset);
+				_presetsByIndex.Add(index, preset);
+				Presets.Add(new CameraPreset((int)index, name, true, true));
 				PresetNamesFeedbacks.Add(index, new StringFeedback("preset" + id, () => name));
 				index++;
 			}
@@ -284,6 +333,8 @@ namespace ViscaCameraPlugin
 			NumberOfPresets = Presets.Count();
 			foreach (var feedback in PresetNamesFeedbacks)
 				feedback.Value.FireUpdate();
+
+			PresetsListHasChanged?.Invoke(this, EventArgs.Empty);
 		}
 
 		#region Overrides of EssentialsBridgeableDevice
@@ -563,7 +614,7 @@ namespace ViscaCameraPlugin
 				byte[] byteArray = System.Text.Encoding.GetEncoding(28591).GetBytes(args.Text);
 
 				this.LogVerbose("Handle_BytesRecieved: {byteArray}", ComTextHelper.GetEscapedText(byteArray));
-				
+
 				if (byteArray.Length < 3)
 				{
 					this.LogVerbose("byteArray.Length < 3, power status is held in byteArray[2]");
@@ -639,6 +690,33 @@ namespace ViscaCameraPlugin
 		{
 			SendBytes(new byte[] { _address, 0x01, 0x04, 0x00, 0x03, 0xFF });
 			new CTimer(o => Poll(), null, 1000);
+		}
+
+		/// <summary>
+		/// Powers the camera on
+		/// </summary>
+		public void PowerOn()
+		{
+			CameraOn();
+		}
+
+		/// <summary>
+		/// Powers the camera off
+		/// </summary>
+		public void PowerOff()
+		{
+			CameraOff();
+		}
+
+		/// <summary>
+		/// Toggles the camera power state
+		/// </summary>
+		public void PowerToggle()
+		{
+			if (CameraIsOff)
+				CameraOn();
+			else
+				CameraOff();
 		}
 
 		public void PanLeft()
@@ -718,7 +796,7 @@ namespace ViscaCameraPlugin
 		public void PresetSelect(int preset)
 		{
 			ViscaCameraPresetsConfig p;
-			if (Presets.TryGetValue((uint)preset, out p))
+			if (_presetsByIndex.TryGetValue((uint)preset, out p))
 			{
 				SendBytes(new byte[] { _address, 0x01, 0x04, 0x3F, 0x02, Convert.ToByte(p.Id), 0xFF });
 			}
@@ -749,7 +827,7 @@ namespace ViscaCameraPlugin
 		public void PresetStore(int preset, string description)
 		{
 			ViscaCameraPresetsConfig p;
-			if (Presets.TryGetValue((uint)preset, out p))
+			if (_presetsByIndex.TryGetValue((uint)preset, out p))
 			{
 				SendBytes(new byte[] { _address, 0x01, 0x04, 0x3F, 0x01, Convert.ToByte(p.Id), 0xFF });
 

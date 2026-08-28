@@ -10,7 +10,7 @@ namespace ViscaCameraPlugin
         public ViscaCameraFactory()
         {
             // Set the minimum Essentials Framework Version
-            MinimumEssentialsFrameworkVersion = "2.16.1";
+            MinimumEssentialsFrameworkVersion = "3.0.0";
 
             // In the constructor we initialize the list with the typenames that will build an instance of this device
             TypeNames = new List<string> { "visca", "viscacamera" };
@@ -29,10 +29,21 @@ namespace ViscaCameraPlugin
 	        }
             
             var propertiesConfig = dc.Properties.ToObject<ViscaCameraConfig>();
-	        if (propertiesConfig != null) return new ViscaCameraDevice(dc.Key, dc.Name, comms, propertiesConfig);
+	        if (propertiesConfig == null)
+	        {
+		        Debug.LogError("[{0}] VISCA Camera: failed to read properties config for {1}", dc.Key, dc.Name);
+		        return null;
+	        }
 
-	        Debug.LogError("[{0}] VISCA Camera: failed to read properties config for {1}", dc.Key, dc.Name);
-	        return null;
+	        try
+	        {
+		        return new ViscaCameraDevice(dc.Key, dc.Name, comms, propertiesConfig);
+	        }
+	        catch (System.Exception ex)
+	        {
+		        Debug.LogError(ex, "[{0}] VISCA Camera: exception constructing device {1}: {2}", dc.Key, dc.Name, ex.Message);
+		        return null;
+	        }
         }
 
     }

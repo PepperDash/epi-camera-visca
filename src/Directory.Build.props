@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>1.0.0-local</Version>
+    <Version>3.0.0-local</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <Authors>PepperDash Technologies</Authors>
     <Company>PepperDash Technologies</Company>
@@ -8,7 +8,7 @@
     <Copyright>Copyright © 2025</Copyright>
     <RepositoryUrl>https://github.com/PepperDash-Engineering/epi-camera-visca</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>Crestron; 4series</PackageTags>
+    <PackageTags>Crestron; 4series; net8</PackageTags>
     <PackageOutputPath>../output</PackageOutputPath>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>

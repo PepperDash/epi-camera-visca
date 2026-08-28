@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pepperdash.com/schemas/epi-camera-visca/viscaCamera.schema.json",
+  "title": "viscaCamera",
+  "description": "Device config entry for a device of type \"viscaCamera\". Properties object for a device of type \"visca\" / \"viscacamera\", backed by ViscaCameraConfig (ViscaCameraConfig.cs).",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Unique identifier for this device within the configuration file."
+    },
+    "name": {
+      "type": "string",
+      "description": "Friendly display name for this device."
+    },
+    "type": {
+      "type": "string",
+      "description": "Discriminator identifying the plugin factory that instantiates this device. Accepted aliases are equivalent.",
+      "enum": [
+        "viscaCamera",
+        "visca"
+      ]
+    },
+    "properties": {
+      "$ref": "#/$defs/properties",
+      "description": "Properties object for a device of type \"visca\" / \"viscacamera\", backed by ViscaCameraConfig (ViscaCameraConfig.cs)."
+    }
+  },
+  "required": [
+    "key",
+    "name",
+    "type",
+    "properties"
+  ],
+  "$defs": {
+    "properties": {
+      "type": "object",
+      "properties": {
+        "control": {
+          "$ref": "#/$defs/control"
+        },
+        "address": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "VISCA camera address (0-based, typically 1)."
+        },
+        "panSpeed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Pan speed used for VISCA pan commands."
+        },
+        "tiltSpeed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Tilt speed used for VISCA tilt commands."
+        },
+        "ZoomSpeed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zoom speed used for VISCA zoom commands."
+        },
+        "FocusSpeed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Focus speed used for VISCA focus commands."
+        },
+        "PrivacyOnPreset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Camera preset number recalled to put the camera into a privacy/blocked position."
+        },
+        "PrivacyOffPreset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Camera preset number recalled to restore the camera from privacy mode."
+        },
+        "pollTimeMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Communication monitor poll interval, in milliseconds."
+        },
+        "presets": {
+          "type": "array",
+          "description": "List of named camera presets.",
+          "items": {
+            "$ref": "#/$defs/preset"
+          }
+        },
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "description": "Standard Essentials communication control block (EssentialsControlPropertiesConfig).",
+      "properties": {
+        "method": {
+          "type": "string",
+          "pattern": "^(?:[nN][oO][nN][eE]|[cC][oO][mM]|[iI][pP][iI][dD]|[iI][pP][iI][dD][tT][cC][pP]|[iI][rR]|[sS][sS][hH]|[tT][cC][pP][iI][pP]|[tT][eE][lL][nN][eE][tT]|[cC][rR][eE][sS][nN][eE][tT]|[cC][eE][cC]|[uU][dD][pP]|[hH][tT][tT][pP]|[hH][tT][tT][pP][sS]|[wW][sS]|[wW][sS][sS]|[sS][eE][cC][uU][rR][eE][tT][cC][pP][iI][pP]|[cC][oO][mM][bB][rR][iI][dD][gG][eE]|[iI][nN][fF][iI][nN][eE][tT][eE][xX])(?:\\s*,\\s*(?:[nN][oO][nN][eE]|[cC][oO][mM]|[iI][pP][iI][dD]|[iI][pP][iI][dD][tT][cC][pP]|[iI][rR]|[sS][sS][hH]|[tT][cC][pP][iI][pP]|[tT][eE][lL][nN][eE][tT]|[cC][rR][eE][sS][nN][eE][tT]|[cC][eE][cC]|[uU][dD][pP]|[hH][tT][tT][pP]|[hH][tT][tT][pP][sS]|[wW][sS]|[wW][sS][sS]|[sS][eE][cC][uU][rR][eE][tT][cC][pP][iI][pP]|[cC][oO][mM][bB][rR][iI][dD][gG][eE]|[iI][nN][fF][iI][nN][eE][tT][eE][xX]))*$",
+          "description": "Case-insensitive."
+        },
+        "controlPortDevKey": {
+          "type": "string"
+        },
+        "controlPortNumber": {
+          "type": "integer"
+        },
+        "controlPortName": {
+          "type": "string"
+        },
+        "tcpSshProperties": {
+          "$ref": "#/$defs/tcpSshProperties"
+        },
+        "irFile": {
+          "type": "string"
+        },
+        "ipId": {
+          "type": "string"
+        },
+        "endOfLineChar": {
+          "type": "string",
+          "maxLength": 1
+        },
+        "endOfLineString": {
+          "type": "string"
+        },
+        "comParams": {
+          "type": "object",
+          "description": "COM port spec (baud rate, data bits, stop bits, parity, protocol, handshake) when method is \"Com\"."
+        },
+        "cresnetId": {
+          "type": "string"
+        },
+        "infinetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ]
+    },
+    "tcpSshProperties": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "IP address or hostname of the device."
+        },
+        "port": {
+          "type": "integer"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "bufferSize": {
+          "type": "integer",
+          "default": 32768
+        },
+        "autoReconnect": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoReconnectIntervalMs": {
+          "type": "integer",
+          "default": 5000
+        },
+        "disableSshEcho": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "address",
+        "port"
+      ]
+    },
+    "preset": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "id"
+      ]
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "canPan": {
+          "type": "boolean"
+        },
+        "canTilt": {
+          "type": "boolean"
+        },
+        "canZoom": {
+          "type": "boolean"
+        },
+        "canFocus": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

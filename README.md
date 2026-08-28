@@ -47,7 +47,7 @@ Udp
 <!-- START Minimum Essentials Framework Versions -->
 ### Minimum Essentials Framework Versions
 
-- 1.11.1
+- 3.0.0
 <!-- END Minimum Essentials Framework Versions -->
 <!-- START Config Example -->
 ### Config Example
@@ -137,6 +137,8 @@ Udp
 - IHasCameraOff
 - IHasCameraPtzControl
 - IHasCameraFocusControl
+- IHasPowerControlWithFeedback
+- IHasCameraPresets
 <!-- END Interfaces Implemented -->
 <!-- START Base Classes -->
 ### Base Classes
